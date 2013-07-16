@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <title>Spell Ghost</title>
+        <!-- Style Sheets -->
+        <!--
+        <link rel="stylesheet" href="http://code.jquery.com/mobile/1.3.1/jquery.mobile-1.3.1.min.css" />
+        -->
+        <link rel="stylesheet" href="themes/mainGhost.min.css" />
+        <link rel="stylesheet" href="http://code.jquery.com/mobile/1.3.1/jquery.mobile.structure-1.3.1.min.css" />
+        <!-- Scripts -->
+        <script src="phonegap.js"></script>
+        <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
+        <script src="http://code.jquery.com/mobile/1.3.1/jquery.mobile-1.3.1.min.js"></script>
+        <script>
+            // Search Page functionality
+            $(document).on("pageinit", "#searchPage", function(){
+                // Disable autocorrect
+                $('input[data-type=search]').attr('autocorrect', 'off');
+                $('input[data-type=search]').attr('autocapitalize', 'off');
+                
+                // Autocomplete action
+                $("#autocomplete").on("listviewbeforefilter", function(e, data){
+                    var $ul = $(this),
+                        $input = $(data.input),
+                        value = $input.val().toLowerCase();
+                    
+                    updateWordList($ul, value);
+                });
+                
+                // On a word click to get the definiition
+                $("#searchContent").on('click', 'a.wordLI', function(e){
+                    sessionStorage.setItem('word', $(this).text());
+                    
+                    $.mobile.changePage('#definePage', {
+                        transition: 'slide',
+                        changeHash: 'false'
+                    });
+                });
+            
+                // Update the word list with words given a value
+                function updateWordList($ul, value) {
+                    // Clear the list
+                    $ul.html("");
+                    // Check that we have an appropriate word size
+                    if (value && value.length > 1) {
+                        var html = "";
+                        
+                        // Get the file to load
+                        var wordFile = "resources/words/" + value.substring(0,2)+ ".csv";
+                        $.get(wordFile,function(data){
+                            // Get all the lines in the file
+                            var lines = data.split('\n');
+                            $.each(lines, function(){
+                                // Get the words
+                                var words = this.split(',');
+                                if (words[0].match("^"+value)) {
+                                    // Add the words to the html
+                                    html += '<li><a class="wordLI">' +  words[0] + '</a></li>';
+                                }
+                            });
+                        }, 'text')
+                        .always(function() {
+                            // Always update the html on complete
+                            $ul.html(html);
+                            $ul.listview("refresh");
+                            $ul.trigger("updatelayout");                            
+                        });
+                    } else {
+                        $ul.listview("refresh");
+                        $ul.trigger("updatelayout");
+                    }
+                }
+            });
+            
+            // Define Page functionality
+            // Executes the first time the define page is loaded
+            $(document).on("pageinit", "#definePage", function(){
+                $('#definePage').on('swiperight',function(event){
+                    $.mobile.changePage('#searchPage', {
+                        transition: 'slide',
+                        reverse: 'true',
+                        changeHash: 'false'
+                    });
+                });
+            });
+            
+            // Executes every time the page will be shown
+            $(document).on("pagebeforeshow", "#definePage", function(){
+                $("#wordForDef").html('<b>' + sessionStorage.getItem('word') + '</b>');
+                
+                updateWordDefinition(sessionStorage.getItem('word'));
+                
+                function updateWordDefinition(word) {
+                    var $defHTML = $("#definitions");
+                    $defHTML.html("");
+                    
+                    // Check that we have an appropriate word size
+                    if (word && word.length > 1) {
+                        var html = "";
+                        
+                        // Get the file to load
+                        var wordFile = "resources/words/" + word.substring(0,2)+ ".csv";
+                        $.get(wordFile,function(data){
+                            // Get all the lines in the file
+                            var lines = data.split('\n');
+                            $.each(lines, function(){
+                                // Get the words
+                                var words = this.split(',');
+                                if (words[0].match("^"+word)) {
+                                    html = getLineDefinitionAsHTML(this);
+                                    return;
+                                }
+                            });
+                        }, 'text')
+                        .always(function() {
+                            // Always update the html on complete
+                            $defHTML.html(html);                         
+                        });
+                    } else {
+                        $defHTML.html("Invalid word was given");
+                    }
+                }
+                /**
+                 * Given a dictionary line, extractthe definition as html
+                 */
+                function getLineDefinitionAsHTML(line) {
+                    var html = "";
+                    var whole_def = line.match(",.*$");
+                    if (whole_def) {
+                        html = '<ul>';
+                        var defs = whole_def[0].substring(2).split('","');
+                        $.each(defs, function(){
+                            html += "<li>";
+                            var examples = this.split('; "');
+                            if (examples.length > 1) {
+                                // Convert to uppercase and start the unordered list for examples
+                                html += toUpper(examples[0]) + '<ul>';
+                                $.each(examples, function(pos){
+                                    if (pos > 0) {
+                                        // Add the example, convert girst letter to uppercase and remove trailing quotes
+                                        html += '<li>' + toUpper(this.replace(/"*$/, '')) + '</li>';
+                                    }
+                                });
+                                html += '</ul>';
+                            } else {
+                                // Convert to uppercase, and remove the last quote
+                                html += toUpper(this.substring(0, this.length));
+                            }
+                            html += "</li>";
+                        });
+                        html += "</ul>";
+                    }else{
+                        html = "No definition was found."
+                    }
+                    return html;
+                }
+                
+                // Converts the first letter of a string to uppercase
+                function toUpper(string) {
+                    return string.slice(0,1).toUpperCase() + string.slice(1);
+                }
+            });
+        </script>
+    </head>
+    <body>
+        <div id="searchPage" data-role="page" data-theme="a">
+            <div data-role="header" position="fixed">
+                <h1>Search</h1>
+            </div>
+            <div id="searchContent" data-role="content">
+                <ul id="autocomplete" data-role="listview" data-inset="true" data-filter="true" data-filter-placeholder="Start typing a word..."></ul>
+            </div>    
+        </div>
+        <div id="definePage" data-role="page" data-theme="a">
+            <div data-role="header" position="fixed">
+                <h1>Define</h1>
+            </div>
+            <div id="defineContent" data-role="content">
+                <div id="wordForDef"></div>
+                <div id="definitions"></div>
+            </div>    
+        </div>
+    </body>
+</html>

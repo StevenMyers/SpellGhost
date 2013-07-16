@@ -4,7 +4,7 @@
     <description>
         An app designed to help with the Ghost spelling game.
     </description>
-    <author email="stevenmyers32@gmail.com">
+    <author email="stevenmyers32@gmail.com" href="https://github.com/StevoBurrito/SpellGhost/">
         Steven Myers
     </author>
     <access origin="*" />
